@@ -151,6 +151,21 @@ router.route('/hotels').get(hotelCtrl.getAllHotels).post(hotelCtrl.createHotel);
  *         name: id
  *         required: true
  *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               location: { type: string }
+ *               description: { type: string }
+ *               rating: { type: number }
+ *           example:
+ *             name: "Grand Lampung Hotel Updated"
+ *             location: "Bandar Lampung"
+ *             description: "Hotel bintang 4 di pusat kota"
+ *             rating: 4.5
  *     responses:
  *       200: { description: Hotel berhasil diperbarui }
  *   delete:
@@ -221,6 +236,20 @@ router.route('/rooms').get(roomCtrl.getAllRooms).post(roomCtrl.createRoom);
  *         name: id
  *         required: true
  *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               hotelId: { type: string }
+ *               roomType: { type: string }
+ *               pricePerNight: { type: number }
+ *               isAvailable: { type: boolean }
+ *           example:
+ *             roomType: "Deluxe Double Updated"
+ *             pricePerNight: 550000
+ *             isAvailable: true
  *     responses:
  *       200: { description: Kamar berhasil diperbarui }
  *   delete:
