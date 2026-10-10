@@ -1,6 +1,6 @@
 const Booking = require('../models/Booking');
 const ApiError = require('../utils/ApiError');
-const generateInvoicePDF = require('../utils/generateInvoice');
+const ensureInvoiceFile = require('../utils/invoiceFile');
 const { verifyInvoiceToken } = require('../utils/invoiceToken');
 
 /**
@@ -34,7 +34,7 @@ const downloadInvoiceByToken = async (req, res, next) => {
       throw new ApiError(404, 'Booking tidak ditemukan');
     }
 
-    const { fileName, filePath } = await generateInvoicePDF(booking);
+    const { fileName, filePath } = await ensureInvoiceFile(booking);
 
     res.status(200).download(filePath, fileName, (err) => {
       if (err && !res.headersSent) {

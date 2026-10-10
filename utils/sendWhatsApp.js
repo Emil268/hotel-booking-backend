@@ -1,4 +1,5 @@
 const axios = require('axios');
+const logger = require('./logger');
 
 const FONNTE_API_URL = 'https://api.fonnte.com/send';
 
@@ -18,7 +19,7 @@ const FONNTE_API_URL = 'https://api.fonnte.com/send';
 const sendWhatsAppNotification = async (target, message) => {
   try {
     if (!process.env.FONNTE_TOKEN) {
-      console.warn('⚠️  FONNTE_TOKEN belum diset di .env, notifikasi WA dilewati.');
+      logger.warn('FONNTE_TOKEN belum diset di .env, notifikasi WA dilewati');
       return { success: false, error: 'FONNTE_TOKEN tidak ditemukan' };
     }
 
@@ -43,11 +44,11 @@ const sendWhatsAppNotification = async (target, message) => {
       }
     );
 
-    console.log(`📲 Notifikasi WA terkirim ke ${normalizedTarget}`);
+    logger.info('Notifikasi WA terkirim', { target: logger.maskPhone(normalizedTarget) });
     return { success: true, data: response.data };
   } catch (error) {
     // Cukup log error, jangan sampai mengganggu flow utama aplikasi
-    console.error(`❌ Gagal mengirim notifikasi WA: ${error.message}`);
+    logger.error('Gagal mengirim notifikasi WA', { error: error.message });
     return { success: false, error: error.message };
   }
 };

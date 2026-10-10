@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 
 /**
  * connectDB
@@ -10,9 +11,9 @@ const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI);
 
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
+    logger.info('MongoDB terhubung', { host: conn.connection.host, database: conn.connection.name });
   } catch (error) {
-    console.error(`❌ Gagal terhubung ke MongoDB: ${error.message}`);
+    logger.error('Gagal terhubung ke MongoDB', { error: error.message });
     // Hentikan aplikasi jika database tidak bisa diakses,
     // karena seluruh endpoint bergantung pada database.
     process.exit(1);

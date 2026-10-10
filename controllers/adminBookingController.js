@@ -1,6 +1,6 @@
 const Booking = require('../models/Booking');
 const ApiError = require('../utils/ApiError');
-const sendWhatsAppNotification = require('../utils/sendWhatsApp');
+const notify = require('../utils/notify');
 const { getPagination, buildPaginationMeta } = require('../utils/paginate');
 
 /**
@@ -65,11 +65,7 @@ const getAllBookings = async (req, res, next) => {
 const updateBookingStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-    const validStatuses = ['Pending', 'Dikonfirmasi', 'Ditolak', 'Cancelled'];
-
-    if (!status || !validStatuses.includes(status)) {
-      throw new ApiError(400, `Status tidak valid. Gunakan salah satu dari: ${validStatuses.join(', ')}`);
-    }
+    // Nilai status sudah divalidasi oleh middleware validate(updateStatusSchema)
 
     const booking = await Booking.findById(req.params.id)
       .populate('userId', 'name phoneNumber')
@@ -105,14 +101,13 @@ const updateBookingStatus = async (req, res, next) => {
       Cancelled: '🚫',
     };
 
-    const waMessage =
+    notify(booking.userId.phoneNumber, () =>
       `${statusEmoji[status] || 'ℹ️'} *Update Status Booking*\n\n` +
       `Booking ID: ${booking.bookingId}\n` +
-      `Hotel: ${booking.roomId.hotelId.name}\n` +
+      `Hotel: ${booking.roomId?.hotelId?.name ?? '-'}\n` +
       `Status terbaru: *${status}*\n\n` +
-      `Terima kasih telah menggunakan layanan kami.`;
-
-    sendWhatsAppNotification(booking.userId.phoneNumber, waMessage);
+      `Terima kasih telah menggunakan layanan kami.`
+    );
 
     res.status(200).json({
       success: true,

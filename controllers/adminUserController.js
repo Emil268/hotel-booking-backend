@@ -51,10 +51,7 @@ const createUser = async (req, res, next) => {
   try {
     const { name, email, password, phoneNumber, role } = req.body;
 
-    if (!name || !email || !password || !phoneNumber) {
-      throw new ApiError(400, 'Nama, email, password, dan nomor WhatsApp wajib diisi');
-    }
-
+    // Input divalidasi oleh middleware validate(adminCreateUserSchema)
     const existingUser = await User.findOne({ email });
     if (existingUser) throw new ApiError(400, 'Email sudah terdaftar');
 

@@ -1,4 +1,5 @@
 const ApiError = require('../utils/ApiError');
+const logger = require('../utils/logger');
 
 /**
  * notFound
@@ -20,8 +21,18 @@ const notFound = (req, res, next) => {
  */
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
-  let statusCode = err.statusCode || 500;
+  let statusCode = err.statusCode || err.status || 500;
   let message = err.message || 'Terjadi kesalahan pada server';
+
+  // Body JSON rusak / terlalu besar (dari express.json)
+  if (err.type === 'entity.parse.failed') {
+    statusCode = 400;
+    message = 'Format JSON pada request body tidak valid';
+  }
+  if (err.type === 'entity.too.large') {
+    statusCode = 413;
+    message = 'Ukuran request body terlalu besar';
+  }
 
   // Error karena format ObjectId MongoDB tidak valid (misal id salah ketik)
   if (err.name === 'CastError') {
@@ -56,9 +67,10 @@ const errorHandler = (err, req, res, next) => {
     message = 'Sesi login telah berakhir, silakan login kembali';
   }
 
-  console.error(`[ERROR] ${req.method} ${req.originalUrl} -> ${message}`);
-  if (process.env.NODE_ENV !== 'production') {
-    console.error(err.stack);
+  // Logging terstruktur: stack trace hanya dicatat untuk error server (5xx)
+  const logContext = { method: req.method, path: req.originalUrl.split('?')[0].replace(/(\/api\/invoices\/)[^/]+/, '$1[REDACTED]'), statusCode, message };
+  if (statusCode >= 500) {
+    logger.error('Unhandled server error', { ...logContext, stack: err.stack });
   }
 
   res.status(statusCode).json({

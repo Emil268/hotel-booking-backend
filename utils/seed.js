@@ -3,13 +3,16 @@
  * Script untuk mengisi database dengan data dummy (development/testing).
  * Jalankan dengan: node utils/seed.js  (atau: npm run seed)
  *
+ * PENGAMAN: script menolak berjalan jika NODE_ENV=production.
+ *
  * Data yang akan dibuat:
  * - 2 User (1 Admin, 1 User biasa)
  * - 2 Hotel
  * - Beberapa Room (tersebar di kedua hotel)
  *
  * PERHATIAN: Script ini akan MENGHAPUS seluruh data lama di koleksi
- * Users, Hotels, dan Rooms sebelum menginput data baru (untuk mencegah duplikasi).
+ * Users, Hotels, Rooms, dan Bookings sebelum menginput data baru (untuk mencegah duplikasi
+ * dan booking yatim). Untuk menambah 1 kamar tanpa menghapus data, pakai `npm run add-room`.
  */
 
 require('dotenv').config();
@@ -17,12 +20,19 @@ const connectDB = require('../config/db');
 const User = require('../models/User');
 const Hotel = require('../models/Hotel');
 const Room = require('../models/Room');
+const Booking = require('../models/Booking');
 
 const seedData = async () => {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('Seeding DITOLAK: NODE_ENV=production (script ini menghapus seluruh data).');
+    process.exit(1);
+  }
+
   try {
     await connectDB();
 
-    console.log('🗑️  Menghapus data lama (Users, Hotels, Rooms)...');
+    console.log('Menghapus data lama (Users, Hotels, Rooms, Bookings)...');
+    await Booking.deleteMany();
     await User.deleteMany();
     await Hotel.deleteMany();
     await Room.deleteMany();
@@ -30,7 +40,7 @@ const seedData = async () => {
     // ===== SEED USERS =====
     // Password akan otomatis di-hash oleh pre-save hook di model User,
     // sehingga di sini cukup ditulis plain text.
-    console.log('👤 Membuat data User...');
+    console.log('Membuat data User...');
     const admin = await User.create({
       name: 'Admin Utama',
       email: 'admin@hotelbooking.com',
@@ -42,13 +52,13 @@ const seedData = async () => {
     const user = await User.create({
       name: 'Budi Santoso',
       email: 'budi@example.com',
-      password: 'user123',
+      password: 'user12345', // minimal 8 karakter (sama dengan aturan registrasi)
       phoneNumber: '628119876543',
       role: 'User',
     });
 
     // ===== SEED HOTELS =====
-    console.log('🏨 Membuat data Hotel...');
+    console.log('Membuat data Hotel...');
     const hotel1 = await Hotel.create({
       name: 'Grand Paradise Hotel',
       location: 'Bali, Indonesia',
@@ -64,7 +74,7 @@ const seedData = async () => {
     });
 
     // ===== SEED ROOMS =====
-    console.log('🛏️  Membuat data Room...');
+    console.log('Membuat data Room...');
     await Room.create([
       {
         hotelId: hotel1._id,
@@ -98,15 +108,15 @@ const seedData = async () => {
       },
     ]);
 
-    console.log('\n✅ Seeding data berhasil!');
+    console.log('\nSeeding data berhasil!');
     console.log('----------------------------------------');
     console.log('Akun Admin -> email: admin@hotelbooking.com | password: admin123');
-    console.log('Akun User  -> email: budi@example.com       | password: user123');
+    console.log('Akun User  -> email: budi@example.com       | password: user12345');
     console.log('----------------------------------------\n');
 
     process.exit(0);
   } catch (error) {
-    console.error(`❌ Seeding gagal: ${error.message}`);
+    console.error(`Seeding gagal: ${error.message}`);
     process.exit(1);
   }
 };

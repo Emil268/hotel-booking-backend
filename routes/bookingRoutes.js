@@ -6,6 +6,8 @@ const {
   cancelBooking,
   downloadInvoice,
 } = require('../controllers/bookingController');
+const validate = require('../middlewares/validate');
+const { createBookingSchema, myBookingsQuerySchema } = require('../validators/schemas');
 const { protect } = require('../middlewares/authMiddleware');
 
 /**
@@ -53,7 +55,7 @@ router.use(protect);
  *       409:
  *         description: Kamar sudah dipesan untuk rentang tanggal tersebut (double booking)
  */
-router.post('/', createBooking);
+router.post('/', validate(createBookingSchema), createBooking);
 
 /**
  * @swagger
@@ -81,7 +83,7 @@ router.post('/', createBooking);
  *       200:
  *         description: Riwayat booking berhasil diambil (paginated)
  */
-router.get('/', getMyBookings);
+router.get('/', validate(myBookingsQuerySchema, 'query'), getMyBookings);
 
 /**
  * @swagger

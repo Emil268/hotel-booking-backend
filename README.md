@@ -1,131 +1,141 @@
-# 🏨 Hotel Booking Backend API
+# Hotel Booking Backend API
 
-RESTful API backend untuk sistem booking hotel, dibangun dengan Node.js, Express,
-MongoDB (Mongoose), JWT Authentication, notifikasi WhatsApp (Fonnte), invoice PDF
-(pdfkit), dan dokumentasi Swagger.
+REST API backend untuk sistem pemesanan kamar hotel: **Node.js, Express, MongoDB (Mongoose), JWT**,
+notifikasi WhatsApp (**Fonnte**), invoice PDF (**PDFKit**), dan dokumentasi interaktif (**Swagger**).
 
-## 📁 Struktur Folder (MVC)
+## Fitur
+
+- Autentikasi JWT dengan 2 role: **User** & **Admin** (registrasi publik selalu menghasilkan `User`)
+- Pencarian kamar (filter hotel, harga, kata kunci, dan **ketersediaan per tanggal** `checkIn`/`checkOut`) + pagination
+- Pemesanan kamar dengan pengecekan bentrok jadwal yang aman terhadap request bersamaan
+- Riwayat booking milik sendiri, pembatalan booking, dan status booking dengan aturan transisi (state machine)
+- Notifikasi WhatsApp otomatis (booking dibuat, dibatalkan, status diubah, link invoice)
+- Invoice PDF dengan akses terbatas (login pemilik booking, atau link bertoken singkat dari WhatsApp)
+- Admin: CRUD user, hotel, kamar, dan kelola seluruh booking
+- Keamanan: Helmet, CORS whitelist, rate limiting, batas ukuran body, validasi input (Zod), anti mass-assignment
+- Health check `GET /health`, logging terstruktur (JSON), dan pengujian otomatis (Jest + Supertest)
+
+## Struktur Folder
 
 ```
 hotel-booking-backend/
+├── app.js                  # Merakit aplikasi Express (middleware + routes), diekspor untuk testing
+├── server.js               # Entry point: validasi .env, konek database, menyalakan server
+├── addrooms.js             # Menambah 1 hotel + 1 kamar contoh (idempoten): npm run add-room
 ├── config/
-│   ├── db.js               # Koneksi ke MongoDB
+│   ├── db.js               # Koneksi MongoDB
+│   ├── env.js              # Validasi environment variable (fail-fast)
 │   └── swagger.js          # Konfigurasi Swagger (OpenAPI)
-├── controllers/
-│   ├── authController.js
-│   ├── roomController.js
-│   ├── bookingController.js
-│   ├── adminUserController.js
-│   ├── adminHotelController.js
-│   ├── adminRoomController.js
-│   └── adminBookingController.js
+├── controllers/            # Logika tiap fitur (auth, room, booking, invoice, admin*)
 ├── middlewares/
 │   ├── authMiddleware.js   # protect (JWT) & adminOnly (RBAC)
-│   └── errorHandler.js     # notFound & centralized error handler
-├── models/
-│   ├── User.js
-│   ├── Hotel.js
-│   ├── Room.js
-│   └── Booking.js
-├── routes/
-│   ├── authRoutes.js
-│   ├── roomRoutes.js
-│   ├── bookingRoutes.js
-│   └── adminRoutes.js
+│   ├── validate.js         # Validasi input berbasis Zod
+│   ├── rateLimiters.js     # Rate limiting (umum & khusus login/registrasi)
+│   ├── requestLogger.js    # Log request terstruktur
+│   └── errorHandler.js     # Penanganan error terpusat
+├── models/                 # User, Hotel, Room, Booking (Mongoose)
+├── routes/                 # auth, rooms, bookings, admin, invoices, health
+├── validators/schemas.js   # Skema validasi (Zod) untuk seluruh endpoint
 ├── utils/
-│   ├── ApiError.js         # Custom error class
-│   ├── generateBookingId.js
+│   ├── constants.js        # Konstanta bersama (mis. panjang minimal password)
+│   ├── dateRange.js        # Aturan tanggal menginap (dipakai booking & pencarian kamar)
+│   ├── generateInvoice.js  # Membuat PDF invoice (PDFKit)
+│   ├── invoiceFile.js      # Memakai ulang PDF invoice selama data booking belum berubah
+│   ├── invoiceToken.js     # Token JWT singkat untuk link invoice WhatsApp
+│   ├── logger.js           # Logger terstruktur + penyensoran data sensitif
+│   ├── notify.js           # Kirim WhatsApp "aman" (tidak pernah menggagalkan transaksi)
 │   ├── sendWhatsApp.js     # Integrasi Fonnte
-│   ├── generateInvoice.js  # Generate PDF via pdfkit
-│   └── seed.js             # Script seeding data dummy
-├── invoices/                # Direktori penyimpanan file PDF invoice (auto-generated)
-├── .env.example
-├── package.json
-└── server.js                # Entry point aplikasi
+│   ├── paginate.js, ApiError.js, generateBookingId.js
+│   ├── seed.js             # Data awal (menghapus data lama, ditolak di production)
+│   └── migrateTotalPrice.js# Migrasi sekali jalan: totalPrize -> totalPrice
+├── invoices/               # Penyimpanan PDF (TIDAK di-serve sebagai file statis)
+└── tests/                  # Pengujian otomatis (Jest + Supertest)
 ```
 
-## 🚀 Langkah Instalasi & Menjalankan Proyek
-
-### 1. Install dependencies
+## Menjalankan Proyek
 
 ```bash
+git clone https://github.com/Emil268/hotel-booking-backend.git
+cd hotel-booking-backend
 npm install
+cp .env.example .env      # Windows: copy .env.example .env, lalu isi nilainya
+npm run dev               # development (nodemon)   |   npm start  # production
 ```
 
-Ini akan menginstall seluruh package berikut:
-`express`, `mongoose`, `jsonwebtoken`, `bcryptjs`, `dotenv`, `axios`, `pdfkit`,
-`swagger-jsdoc`, `swagger-ui-express`, dan `nodemon` (devDependency).
+Swagger UI: `http://localhost:5000/api-docs` &nbsp;·&nbsp; Health check: `http://localhost:5000/health`
 
-### 2. Konfigurasi Environment Variable
+**Wajib di `.env`:** `MONGO_URI` dan `JWT_SECRET`. Server menolak start jika salah satunya kosong. Di production,
+`JWT_SECRET` harus minimal 32 karakter dan bukan nilai contoh. Daftar lengkap variabel ada di `.env.example`.
 
-Salin file `.env.example` menjadi `.env`, lalu sesuaikan nilainya:
+| Script | Fungsi |
+|---|---|
+| `npm run dev` / `npm start` | Menjalankan server |
+| `npm test` | Menjalankan seluruh pengujian otomatis |
+| `npm run seed` | Mengisi data awal (**menghapus** data lama; ditolak jika `NODE_ENV=production`) |
+| `npm run add-room` | Menambah 1 hotel + 1 kamar contoh tanpa menghapus data (idempoten) |
+| `npm run migrate:price` | Mengganti nama field lama `totalPrize` menjadi `totalPrice` pada data yang sudah ada |
+
+Akun dari `npm run seed`: `admin@hotelbooking.com` / `admin123` (Admin), `budi@example.com` / `user12345` (User).
+Ganti segera jika dipakai di luar development.
+
+## Ringkasan Endpoint
+
+Base URL `http://localhost:5000`. Endpoint bertanda 🔒 butuh header `Authorization: Bearer <token>`.
+
+| Method | Endpoint | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/health` | Publik | Status aplikasi & database |
+| POST | `/api/auth/register` | Publik | Registrasi (role selalu `User`) |
+| POST | `/api/auth/login` | Publik | Login, mengembalikan token JWT |
+| GET | `/api/rooms` | Publik | Cari kamar: `hotelId`, `search`, `minPrice`, `maxPrice`, `checkIn`+`checkOut`, `page`, `limit` |
+| POST | `/api/bookings` | 🔒 User | Buat booking (`roomId`, `startDate`, `endDate`) |
+| GET | `/api/bookings` | 🔒 User | Riwayat booking sendiri (`status`, `page`, `limit`) |
+| **PATCH** | `/api/bookings/:id/cancel` | 🔒 Pemilik | Batalkan booking |
+| GET | `/api/bookings/:id/invoice` | 🔒 Pemilik | Unduh invoice PDF; link WA dikirim maks. 1x per jam |
+| GET | `/api/invoices/:token` | Token invoice | Unduh invoice lewat link WhatsApp (berlaku 1 jam) |
+| GET/POST | `/api/admin/users` | 🔒 Admin | Daftar / buat user |
+| GET/PUT/DELETE | `/api/admin/users/:id` | 🔒 Admin | Detail / ubah / hapus user |
+| GET/POST | `/api/admin/hotels` | 🔒 Admin | Daftar / tambah hotel |
+| GET/PUT/DELETE | `/api/admin/hotels/:id` | 🔒 Admin | Detail / ubah / hapus hotel |
+| GET/POST | `/api/admin/rooms` | 🔒 Admin | Daftar / tambah kamar |
+| GET/PUT/DELETE | `/api/admin/rooms/:id` | 🔒 Admin | Detail / ubah / hapus kamar |
+| GET | `/api/admin/bookings` | 🔒 Admin | Semua booking (filter `status`) |
+| PUT | `/api/admin/bookings/:id/status` | 🔒 Admin | Ubah status booking (+ notifikasi WA) |
+
+Semua endpoint list mendukung pagination `?page=1&limit=10` (maksimal `limit` 100).
+
+## Aturan Bisnis
+
+- **Tanggal menginap:** check-out harus setelah check-in; check-in tidak boleh di masa lalu. Jumlah malam dibulatkan ke atas
+  (minimal 1 malam). Aturan ini satu sumber (`utils/dateRange.js`) untuk pembuatan booking dan pencarian kamar.
+- **Bentrok jadwal:** booking berstatus `Pending`/`Dikonfirmasi` memegang kamar. Booking ditolak dengan `409` jika rentang tanggalnya
+  overlap dengan booking aktif lain pada kamar yang sama. Untuk request bersamaan, booking disimpan lalu diverifikasi ulang; jika
+  ada pemenang lain, booking sendiri dibatalkan otomatis (tanpa butuh replica set MongoDB). Pada tabrakan yang benar-benar
+  serentak kedua request bisa sama-sama ditolak (`409`) — aman, cukup coba lagi.
+- **Status booking:** `Pending` → `Dikonfirmasi` / `Ditolak` / `Cancelled`; `Dikonfirmasi` → `Cancelled`; `Ditolak` dan `Cancelled` bersifat final.
+- **Invoice:** folder `invoices/` tidak pernah di-serve langsung. PDF dibuat ulang hanya jika data booking berubah. Link WhatsApp memakai
+  token JWT khusus (hanya untuk 1 booking, berlaku 1 jam).
+- **Notifikasi WhatsApp:** best-effort. Gagalnya Fonnte tidak menggagalkan booking/ubah status; kegagalan dicatat di log.
+- **Password:** minimal 8 karakter, aturan yang sama di validator, controller, dan model.
+
+## Keamanan
+
+Helmet (header keamanan), CORS dengan whitelist `CORS_ORIGINS`, rate limiting (login/registrasi lebih ketat), batas body 10 KB,
+validasi seluruh input dengan Zod, whitelist field pada update hotel/kamar (anti mass-assignment), pencarian teks di-escape
+(anti regex injection), dan log yang menyensor password/token serta menyamarkan nomor telepon.
+
+## Pengujian
 
 ```bash
-cp .env.example .env
+npm test
 ```
 
-Isi variabel berikut di `.env`:
+Memakai Jest + Supertest dengan model database di-mock, jadi tidak membutuhkan MongoDB. Cakupan: validasi env, autentikasi & role,
+validasi input, anti double-booking (termasuk skenario bersamaan), ketersediaan per tanggal, transisi status, CORS, rate limiting,
+dan health check.
 
-| Variabel        | Keterangan                                                       |
-|-----------------|-------------------------------------------------------------------|
-| `PORT`          | Port server (default: 5000)                                       |
-| `BASE_URL`      | URL dasar server, dipakai untuk link download invoice & Swagger  |
-| `MONGO_URI`     | Connection string MongoDB (lokal atau MongoDB Atlas)              |
-| `JWT_SECRET`    | Secret key untuk signing token JWT (gunakan string acak yang kuat)|
-| `JWT_EXPIRES_IN`| Masa berlaku token, contoh: `7d`                                   |
-| `FONNTE_TOKEN`  | Token API dari [fonnte.com](https://fonnte.com) untuk kirim WA    |
+## Catatan & Keterbatasan
 
-### 3. Pastikan MongoDB berjalan
-
-Jalankan MongoDB secara lokal, atau gunakan MongoDB Atlas dan masukkan connection
-string-nya ke `MONGO_URI`.
-
-### 4. Jalankan seeding data dummy (opsional tapi disarankan)
-
-```bash
-npm run seed
-```
-
-Script ini akan membuat:
-- 1 akun **Admin**: `admin@hotelbooking.com` / `admin123`
-- 1 akun **User**: `budi@example.com` / `user123`
-- 2 Hotel dan 5 Room contoh
-
-### 5. Jalankan server
-
-```bash
-# mode development (auto-restart dengan nodemon)
-npm run dev
-
-# atau mode production
-npm start
-```
-
-Server berjalan di `http://localhost:5000` (atau sesuai `PORT` di `.env`).
-
-### 6. Akses Dokumentasi API (Swagger)
-
-Buka browser ke:
-
-```
-http://localhost:5000/api-docs
-```
-
-Semua endpoint (Auth, Rooms, Bookings, Admin) terdokumentasi dan bisa langsung
-dicoba (Try it out) dari sana. Untuk endpoint yang butuh login, klik tombol
-**Authorize** lalu masukkan `Bearer <token_JWT_hasil_login>`.
-
-## 🔑 Alur Penggunaan Singkat
-
-1. `POST /api/auth/register` atau login dengan akun hasil seeding di `/api/auth/login` → dapatkan token JWT.
-2. `GET /api/rooms` → lihat daftar kamar yang tersedia.
-3. `POST /api/bookings` (butuh token) → booking kamar, status awal `Pending`, notifikasi WA otomatis terkirim.
-4. Login sebagai **Admin** → `PUT /api/admin/bookings/:id/status` untuk mengonfirmasi/menolak booking (notifikasi WA otomatis terkirim ke user).
-5. `GET /api/bookings/:id/invoice` (sebagai User pemilik booking) → download invoice PDF, link juga dikirim via WA.
-6. User bisa membatalkan booking miliknya sendiri lewat `POST /api/bookings/:id/cancel`.
-
-## ⚠️ Catatan Penting
-
-- Field `phoneNumber` ditambahkan pada model `User` (di luar spesifikasi awal secara eksplisit) karena notifikasi WhatsApp via Fonnte membutuhkan nomor tujuan yang valid.
-- Pengiriman notifikasi WA didesain **best-effort**: jika gagal (misal token Fonnte salah / device offline), proses utama (booking / update status) tetap berhasil, kegagalan hanya di-log ke console — agar sistem tidak down hanya karena pihak ketiga error.
-- File invoice PDF disimpan secara fisik di folder `/invoices` dan bisa diakses publik lewat `{BASE_URL}/invoices/<namafile>.pdf` (dipakai di link WA).
+- Belum ada refresh token / logout sisi-server (token JWT stateless berlaku sesuai `JWT_EXPIRES_IN`).
+- Belum ada antrean pekerjaan (queue) untuk WhatsApp; pengiriman dilakukan di proses yang sama secara best-effort.
+- Rate limiter memakai memori proses (cukup untuk 1 instance; gunakan store Redis jika di-scale ke banyak instance).

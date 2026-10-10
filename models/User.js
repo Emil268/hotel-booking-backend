@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { PASSWORD_MIN_LENGTH } = require('../utils/constants');
 
 const userSchema = new mongoose.Schema(
   {
@@ -19,7 +20,7 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'Password wajib diisi'],
-      minlength: 6,
+      minlength: [PASSWORD_MIN_LENGTH, `Password minimal harus ${PASSWORD_MIN_LENGTH} karakter`], // sama dengan validator & controller
       select: false, // password tidak akan ikut ter-return secara default saat query
     },
     // Nomor WhatsApp dibutuhkan sebagai tujuan pengiriman notifikasi via Fonnte.

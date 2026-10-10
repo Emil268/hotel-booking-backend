@@ -1,66 +1,45 @@
+/**
+ * server.js
+ * Entry point: baca .env, validasi konfigurasi, sambung database, lalu nyalakan server.
+ * Perakitan aplikasi Express ada di app.js.
+ */
 require('dotenv').config();
 
-const express = require('express');
-const swaggerUi = require('swagger-ui-express');
-
+const mongoose = require('mongoose');
+const { validateEnv } = require('./config/env');
 const connectDB = require('./config/db');
-const swaggerSpec = require('./config/swagger');
-const { notFound, errorHandler } = require('./middlewares/errorHandler');
+const logger = require('./utils/logger');
 
-// Import seluruh modul routing
-const authRoutes = require('./routes/authRoutes');
-const roomRoutes = require('./routes/roomRoutes');
-const bookingRoutes = require('./routes/bookingRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const invoiceRoutes = require('./routes/invoiceRoutes');
+// Fail-fast: jangan menyalakan server dengan konfigurasi tidak aman / tidak lengkap
+const { errors, warnings } = validateEnv();
+warnings.forEach((w) => logger.warn(`Konfigurasi: ${w}`));
+if (errors.length) {
+  errors.forEach((e) => logger.error(`Konfigurasi tidak valid: ${e}`));
+  process.exit(1);
+}
 
-// Hubungkan ke MongoDB sebelum server menerima request
-connectDB();
-
-const app = express();
-
-// ===== GLOBAL MIDDLEWARES =====
-app.use(express.json()); // parsing body JSON
-app.use(express.urlencoded({ extended: true })); // parsing body form-urlencoded
-
-// CATATAN KEAMANAN: folder invoices/ SENGAJA TIDAK di-serve sebagai static file lagi.
-// Sebelumnya (`express.static('/invoices')`) siapa pun yang menebak pola nama file
-// (invoice-<bookingId>.pdf) bisa mengunduh invoice milik user lain tanpa autentikasi.
-// Sekarang invoice hanya bisa diakses lewat:
-//   1) GET /api/bookings/:id/invoice (butuh login, hanya pemilik booking)
-//   2) GET /api/invoices/:token (link di WA, token JWT singkat & unik per booking)
-// Lihat routes/invoiceRoutes.js & utils/invoiceToken.js.
-
-// ===== DOKUMENTASI SWAGGER =====
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// ===== ROUTES =====
-app.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Hotel Booking API is running 🚀',
-    documentation: `${process.env.BASE_URL || 'http://localhost:5000'}/api-docs`,
-  });
-});
-
-app.use('/api/auth', authRoutes); // registrasi & login
-app.use('/api/rooms', roomRoutes); // daftar kamar (public)
-app.use('/api/bookings', bookingRoutes); // booking oleh user (protected)
-app.use('/api/admin', adminRoutes); // seluruh fitur admin (protected + RBAC)
-app.use('/api/invoices', invoiceRoutes); // download invoice via token bertanda tangan (dipakai link WA)
-
-// Ignores favicon request agar tidak memicu error log
-app.get('/favicon.ico', (req, res) => res.status(204).end());
-
-// ===== ERROR HANDLING (WAJIB PALING BAWAH) =====
-app.use(notFound); // 404 handler untuk route yang tidak terdaftar
-app.use(errorHandler); // centralized global error handler
-
+const app = require('./app');
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
-  console.log(`📚 Swagger docs tersedia di http://localhost:${PORT}/api-docs`);
-});
+const start = async () => {
+  await connectDB(); // keluar dengan exit code 1 jika database tidak bisa diakses
 
-module.exports = app; // diekspor agar bisa dipakai untuk automated testing (mis. supertest)
+  const server = app.listen(PORT, () => {
+    logger.info(`Server berjalan di http://localhost:${PORT}`);
+    logger.info(`Swagger docs tersedia di http://localhost:${PORT}/api-docs`);
+  });
+
+  // Graceful shutdown: selesaikan request yang sedang berjalan, lalu tutup koneksi DB
+  const shutdown = (signal) => {
+    logger.info(`Menerima ${signal}, mematikan server...`);
+    server.close(async () => {
+      await mongoose.connection.close();
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(1), 10000).unref(); // paksa keluar jika terlalu lama
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+};
+
+start();

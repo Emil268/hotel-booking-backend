@@ -104,7 +104,7 @@ const generateInvoicePDF = (booking) => {
         .font('Helvetica-Bold')
         .fontSize(15)
         .fillColor('#27ae60')
-        .text(`TOTAL PEMBAYARAN: Rp ${booking.totalPrize.toLocaleString('id-ID')}`, { align: 'right' });
+        .text(`TOTAL PEMBAYARAN: Rp ${booking.totalPrice.toLocaleString('id-ID')}`, { align: 'right' });
 
       doc.moveDown(2);
       doc
@@ -124,4 +124,5 @@ const generateInvoicePDF = (booking) => {
   });
 };
 
+generateInvoicePDF.INVOICE_DIR = INVOICE_DIR; // dipakai utils/invoiceFile.js
 module.exports = generateInvoicePDF;

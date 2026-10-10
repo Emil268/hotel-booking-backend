@@ -6,6 +6,8 @@ const userCtrl = require('../controllers/adminUserController');
 const hotelCtrl = require('../controllers/adminHotelController');
 const roomCtrl = require('../controllers/adminRoomController');
 const bookingCtrl = require('../controllers/adminBookingController');
+const validate = require('../middlewares/validate');
+const S = require('../validators/schemas');
 
 /**
  * @swagger
@@ -47,7 +49,7 @@ router.use(protect, adminOnly);
  *     responses:
  *       201: { description: User berhasil dibuat }
  */
-router.route('/users').get(userCtrl.getAllUsers).post(userCtrl.createUser);
+router.route('/users').get(userCtrl.getAllUsers).post(validate(S.adminCreateUserSchema), userCtrl.createUser);
 
 /**
  * @swagger
@@ -97,7 +99,7 @@ router.route('/users').get(userCtrl.getAllUsers).post(userCtrl.createUser);
 router
   .route('/users/:id')
   .get(userCtrl.getUserById)
-  .put(userCtrl.updateUser)
+  .put(validate(S.adminUpdateUserSchema), userCtrl.updateUser)
   .delete(userCtrl.deleteUser);
 
 /* ==================== HOTELS (CRUD) ==================== */
@@ -128,7 +130,7 @@ router
  *     responses:
  *       201: { description: Hotel berhasil dibuat }
  */
-router.route('/hotels').get(hotelCtrl.getAllHotels).post(hotelCtrl.createHotel);
+router.route('/hotels').get(hotelCtrl.getAllHotels).post(validate(S.createHotelSchema), hotelCtrl.createHotel);
 
 /**
  * @swagger
@@ -182,7 +184,7 @@ router.route('/hotels').get(hotelCtrl.getAllHotels).post(hotelCtrl.createHotel);
 router
   .route('/hotels/:id')
   .get(hotelCtrl.getHotelById)
-  .put(hotelCtrl.updateHotel)
+  .put(validate(S.updateHotelSchema), hotelCtrl.updateHotel)
   .delete(hotelCtrl.deleteHotel);
 
 /* ==================== ROOMS (CRUD) ==================== */
@@ -213,7 +215,7 @@ router
  *     responses:
  *       201: { description: Kamar berhasil dibuat }
  */
-router.route('/rooms').get(roomCtrl.getAllRooms).post(roomCtrl.createRoom);
+router.route('/rooms').get(roomCtrl.getAllRooms).post(validate(S.createRoomSchema), roomCtrl.createRoom);
 
 /**
  * @swagger
@@ -266,7 +268,7 @@ router.route('/rooms').get(roomCtrl.getAllRooms).post(roomCtrl.createRoom);
 router
   .route('/rooms/:id')
   .get(roomCtrl.getRoomById)
-  .put(roomCtrl.updateRoom)
+  .put(validate(S.updateRoomSchema), roomCtrl.updateRoom)
   .delete(roomCtrl.deleteRoom);
 
 /* ==================== BOOKINGS (Kelola oleh Admin) ==================== */
@@ -315,6 +317,6 @@ router.get('/bookings', bookingCtrl.getAllBookings);
  *       400: { description: Status tidak valid }
  *       404: { description: Booking tidak ditemukan }
  */
-router.put('/bookings/:id/status', bookingCtrl.updateBookingStatus);
+router.put('/bookings/:id/status', validate(S.updateStatusSchema), bookingCtrl.updateBookingStatus);
 
 module.exports = router;

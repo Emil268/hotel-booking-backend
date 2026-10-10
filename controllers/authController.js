@@ -23,14 +23,8 @@ const register = async (req, res, next) => {
     // hanya boleh lewat POST /api/admin/users (protected + adminOnly) atau seeding.
     const { name, email, password, phoneNumber } = req.body;
 
-    if (!name || !email || !password || !phoneNumber) {
-      throw new ApiError(400, 'Nama, email, password, dan nomor WhatsApp wajib diisi');
-    }
-
-    // Validasi panjang password minimal 8 karakter
-    if (password.length < 8) {
-      throw new ApiError(400, 'Password minimal harus 8 karakter');
-    }
+    // Format & panjang input (termasuk password minimal) divalidasi oleh middleware
+    // validate(registerSchema) -> aturan password satu sumber dengan models/User.js.
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -73,10 +67,6 @@ const register = async (req, res, next) => {
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      throw new ApiError(400, 'Email dan password wajib diisi');
-    }
 
     // .select('+password') karena field password di-set select:false di schema
     const user = await User.findOne({ email }).select('+password');
